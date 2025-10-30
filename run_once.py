@@ -40,42 +40,46 @@ def summarize_text(text):
     return " ".join(text.split(".")[:3])
 
 # --- ترجمه ---
+
 def translate_to_farsi(text):
-    """ترجمه با LibreTranslate و در صورت شکست با HuggingFace"""
+    """ترجمه با دو روش و نمایش لاگ کامل"""
     if not text.strip():
+        print("⚠️ متن برای ترجمه خالی است.")
         return text
+
+    print("🌐 شروع ترجمه با LibreTranslate...")
     try:
-        # تلاش اول با LibreTranslate
         res = requests.post(
             "https://translate.argosopentech.com/translate",
             json={"q": text, "source": "en", "target": "fa"},
-            timeout=15
+            timeout=20
         )
         data = res.json()
+        print("📦 پاسخ LibreTranslate:", data)
         if "translatedText" in data:
-            print("✅ ترجمه با LibreTranslate")
+            print("✅ ترجمه با LibreTranslate انجام شد.")
             return data["translatedText"]
     except Exception as e:
-        print("❌ LibreTranslate error:", e)
+        print("❌ خطا در LibreTranslate:", e)
 
-    # تلاش دوم با HuggingFace ترجمه
+    print("🌐 تلاش برای ترجمه با HuggingFace...")
     try:
         response = requests.post(
             "https://api-inference.huggingface.co/models/Helsinki-NLP/opus-mt-en-fa",
             headers={"Authorization": f"Bearer {os.getenv('HF_TOKEN')}"},
             json={"inputs": text},
-            timeout=20
+            timeout=25
         )
         data = response.json()
-        if isinstance(data, list) and "translation_text" in data[0]:
-            print("✅ ترجمه با HuggingFace")
+        print("📦 پاسخ HuggingFace:", data)
+        if isinstance(data, list) and len(data) > 0 and "translation_text" in data[0]:
+            print("✅ ترجمه با HuggingFace انجام شد.")
             return data[0]["translation_text"]
     except Exception as e:
-        print("❌ HuggingFace translation error:", e)
+        print("❌ خطا در HuggingFace:", e)
 
-    print("⚠️ ترجمه انجام نشد، متن انگلیسی برگردانده شد.")
+    print("⚠️ هیچ ترجمه‌ای موفق نشد، متن انگلیسی برگردانده شد.")
     return text
-
 # --- ارسال پیام ---
 def send_message(text):
     try:
