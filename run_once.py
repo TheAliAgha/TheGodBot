@@ -42,10 +42,10 @@ def summarize_text(text):
 # --- ترجمه ---
 
 def translate_to_farsi(text):
-    """ترجمه انگلیسی به فارسی با MyMemory API (پایدار برای GitHub)"""
+def translate_to_farsi(text):
+    """ترجمه انگلیسی به فارسی با MyMemory (نسخه‌ی اصلاح‌شده و مطمئن)"""
     if not text.strip():
         return text
-
     try:
         print("🌐 شروع ترجمه با MyMemory...")
         res = requests.get(
@@ -54,9 +54,17 @@ def translate_to_farsi(text):
             timeout=20
         )
         data = res.json()
+
+        # بررسی بخش‌های مختلف پاسخ برای اطمینان از وجود ترجمه
         translated = data.get("responseData", {}).get("translatedText")
+        if not translated and "matches" in data:
+            for match in data["matches"]:
+                if match.get("translation"):
+                    translated = match["translation"]
+                    break
+
         if translated:
-            print("✅ ترجمه با MyMemory انجام شد.")
+            print("✅ ترجمه با موفقیت انجام شد.")
             return translated
         else:
             print("⚠️ ترجمه‌ای دریافت نشد:", data)
