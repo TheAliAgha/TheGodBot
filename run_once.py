@@ -41,16 +41,40 @@ def summarize_text(text):
 
 # --- ترجمه ---
 def translate_to_farsi(text):
+    """ترجمه با LibreTranslate و در صورت شکست با HuggingFace"""
+    if not text.strip():
+        return text
     try:
+        # تلاش اول با LibreTranslate
         res = requests.post(
-            LIBRE_URL,
+            "https://translate.argosopentech.com/translate",
             json={"q": text, "source": "en", "target": "fa"},
             timeout=15
         )
-        return res.json().get("translatedText", text)
+        data = res.json()
+        if "translatedText" in data:
+            print("✅ ترجمه با LibreTranslate")
+            return data["translatedText"]
     except Exception as e:
-        print("Translation error:", e)
-        return text
+        print("❌ LibreTranslate error:", e)
+
+    # تلاش دوم با HuggingFace ترجمه
+    try:
+        response = requests.post(
+            "https://api-inference.huggingface.co/models/Helsinki-NLP/opus-mt-en-fa",
+            headers={"Authorization": f"Bearer {os.getenv('HF_TOKEN')}"},
+            json={"inputs": text},
+            timeout=20
+        )
+        data = response.json()
+        if isinstance(data, list) and "translation_text" in data[0]:
+            print("✅ ترجمه با HuggingFace")
+            return data[0]["translation_text"]
+    except Exception as e:
+        print("❌ HuggingFace translation error:", e)
+
+    print("⚠️ ترجمه انجام نشد، متن انگلیسی برگردانده شد.")
+    return text
 
 # --- ارسال پیام ---
 def send_message(text):
