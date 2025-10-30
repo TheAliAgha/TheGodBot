@@ -40,8 +40,6 @@ def summarize_text(text):
     return " ".join(text.split(".")[:3])
 
 # --- ترجمه ---
-
-def translate_to_farsi(text):
 def translate_to_farsi(text):
     """ترجمه انگلیسی به فارسی با MyMemory (نسخه‌ی اصلاح‌شده و مطمئن)"""
     if not text.strip():
