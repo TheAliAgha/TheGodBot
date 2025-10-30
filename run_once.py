@@ -42,44 +42,28 @@ def summarize_text(text):
 # --- ترجمه ---
 
 def translate_to_farsi(text):
-    """ترجمه با دو روش و نمایش لاگ کامل"""
+    """ترجمه انگلیسی به فارسی با MyMemory API (پایدار برای GitHub)"""
     if not text.strip():
-        print("⚠️ متن برای ترجمه خالی است.")
         return text
 
-    print("🌐 شروع ترجمه با LibreTranslate...")
     try:
-        res = requests.post(
-            "https://translate.argosopentech.com/translate",
-            json={"q": text, "source": "en", "target": "fa"},
+        print("🌐 شروع ترجمه با MyMemory...")
+        res = requests.get(
+            "https://api.mymemory.translated.net/get",
+            params={"q": text, "langpair": "en|fa"},
             timeout=20
         )
         data = res.json()
-        print("📦 پاسخ LibreTranslate:", data)
-        if "translatedText" in data:
-            print("✅ ترجمه با LibreTranslate انجام شد.")
-            return data["translatedText"]
+        translated = data.get("responseData", {}).get("translatedText")
+        if translated:
+            print("✅ ترجمه با MyMemory انجام شد.")
+            return translated
+        else:
+            print("⚠️ ترجمه‌ای دریافت نشد:", data)
+            return text
     except Exception as e:
-        print("❌ خطا در LibreTranslate:", e)
-
-    print("🌐 تلاش برای ترجمه با HuggingFace...")
-    try:
-        response = requests.post(
-            "https://api-inference.huggingface.co/models/Helsinki-NLP/opus-mt-en-fa",
-            headers={"Authorization": f"Bearer {os.getenv('HF_TOKEN')}"},
-            json={"inputs": text},
-            timeout=25
-        )
-        data = response.json()
-        print("📦 پاسخ HuggingFace:", data)
-        if isinstance(data, list) and len(data) > 0 and "translation_text" in data[0]:
-            print("✅ ترجمه با HuggingFace انجام شد.")
-            return data[0]["translation_text"]
-    except Exception as e:
-        print("❌ خطا در HuggingFace:", e)
-
-    print("⚠️ هیچ ترجمه‌ای موفق نشد، متن انگلیسی برگردانده شد.")
-    return text
+        print("❌ خطا در MyMemory:", e)
+        return text
 # --- ارسال پیام ---
 def send_message(text):
     try:
