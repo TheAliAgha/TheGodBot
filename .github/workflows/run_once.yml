@@ -1,39 +1,31 @@
-name: Run Crypto Bot (once)
+name: Crypto Bot Auto Run
 
 on:
   schedule:
-    - cron: '*/20 * * * *'   # هر 5 دقیقه — اگر می‌خواهی کمتر مصرف کنی: '*/10' یا '*/15'
-  workflow_dispatch:
-
-concurrency:
-  group: crypto-bot
-  cancel-in-progress: true
+    - cron: "*/5 * * * *"  # اجرای هر 5 دقیقه
+  workflow_dispatch:        # اجرا دستی هم مجازه
 
 jobs:
   run:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository (with write)
-      uses: actions/checkout@v4
-      with:
-        persist-credentials: true   # important so git push works with GITHUB_TOKEN
+    - name: Checkout repository
+      uses: actions/checkout@v3
 
-    - name: Setup Python
-      uses: actions/setup-python@v5
+    - name: Set up Python
+      uses: actions/setup-python@v4
       with:
-        python-version: '3.10'
+        python-version: "3.10"
 
     - name: Install dependencies
-      run: pip install requests feedparser
+      run: |
+        pip install requests feedparser pytz apscheduler
 
-    - name: Run bot (one iteration)
+    - name: Run bot
       env:
         TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         HF_TOKEN: ${{ secrets.HF_TOKEN }}
         NEWS_FEED_URL: ${{ secrets.NEWS_FEED_URL }}
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # provided automatically in Actions, but explicit is OK
-        GITHUB_REPOSITORY: ${{ github.repository }}
-      run: |
-        python run_once.py
+      run: python run_once.py
