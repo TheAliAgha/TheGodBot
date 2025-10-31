@@ -6,10 +6,16 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 HF_TOKEN = os.getenv("HF_TOKEN")
 NEWS_FEED_URL = os.getenv("NEWS_FEED_URL", "https://cryptonews.com/news/feed")
-LIBRE_URL = "https://translate.argosopentech.com/translate"
+
+TRANSLATE_APIS = [
+    "https://translate.astian.org/translate",
+    "https://libretranslate.com/translate",
+    "https://translate.argosopentech.com/translate"
+]
+
 POSTED_FILE = "posted.json"
 
-# --- بارگذاری و ذخیره فایل ---
+# --- ذخیره و بارگذاری داده ---
 def load_posted():
     if not os.path.exists(POSTED_FILE):
         return {"links": [], "last_analysis_date": ""}
@@ -25,31 +31,36 @@ def save_posted(data):
     subprocess.run(["git", "commit", "-m", "update posted.json"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     subprocess.run(["git", "push", "origin", "main"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-# --- ترجمه ---
+# --- ترجمه مطمئن ---
 def translate_to_farsi(text):
-    try:
-        r = requests.post(LIBRE_URL, json={"q": text, "source": "en", "target": "fa"}, timeout=15)
-        return r.json().get("translatedText", text)
-    except:
-        return text
+    for api in TRANSLATE_APIS:
+        try:
+            r = requests.post(api, json={"q": text, "source": "en", "target": "fa"}, timeout=20)
+            if r.status_code == 200:
+                data = r.json()
+                if "translatedText" in data:
+                    return data["translatedText"]
+        except Exception as e:
+            print(f"❌ Error from {api}: {e}")
+    return text
 
 # --- خلاصه‌سازی ---
 def summarize_text(text):
     try:
-        response = requests.post(
+        r = requests.post(
             "https://api-inference.huggingface.co/models/sshleifer/distilbart-cnn-12-6",
             headers={"Authorization": f"Bearer {HF_TOKEN}"},
             json={"inputs": text[:2000]},
             timeout=25
         )
-        data = response.json()
+        data = r.json()
         if isinstance(data, list) and "summary_text" in data[0]:
             return data[0]["summary_text"]
     except Exception as e:
         print("HF summarize error:", e)
     return text[:500]
 
-# --- هشتگ‌گذاری هوشمند ---
+# --- هشتگ هوشمند ---
 def generate_hashtags(text):
     tags = []
     lower = text.lower()
@@ -62,25 +73,19 @@ def generate_hashtags(text):
     if "sec" in lower or "lawsuit" in lower: tags.append("#CryptoNews")
     if "market" in lower: tags.append("#MarketUpdate")
     if "bull" in lower or "bear" in lower: tags.append("#CryptoAnalysis")
-    if not tags:
-        tags.append("#CryptoNews")
+    if not tags: tags.append("#CryptoNews")
     return " ".join(tags)
 
-# --- ارسال پیام ---
+# --- ارسال به تلگرام ---
 def send_message(text):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     requests.post(url, data={"chat_id": CHAT_ID, "text": text, "parse_mode": "HTML", "disable_web_page_preview": True})
 
-# --- دریافت خبر ---
+# --- خبرها ---
 def fetch_latest_news():
     feed = feedparser.parse(NEWS_FEED_URL)
-    news = []
-    for entry in feed.entries[:5]:
-        title, link, desc = entry.title, entry.link, getattr(entry, "summary", "")
-        news.append({"title": title, "link": link, "desc": desc})
-    return news
+    return [{"title": e.title, "link": e.link, "desc": getattr(e, "summary", "")} for e in feed.entries[:5]]
 
-# --- انتشار خبر ---
 def post_news():
     data = load_posted()
     sent_links = data["links"]
@@ -108,10 +113,10 @@ def post_news():
 # --- تحلیل تکنیکال ---
 def get_technical_analysis(symbol):
     try:
-        url = f"https://min-api.cryptocompare.com/data/pricemultifull?fsyms={symbol}&tsyms=USD"
-        data = requests.get(url, timeout=10).json()
-        price = data["RAW"][symbol]["USD"]["PRICE"]
-        change = data["RAW"][symbol]["USD"]["CHANGEPCT24HOUR"]
+        r = requests.get(f"https://min-api.cryptocompare.com/data/pricemultifull?fsyms={symbol}&tsyms=USD", timeout=10)
+        d = r.json()
+        price = d["RAW"][symbol]["USD"]["PRICE"]
+        change = d["RAW"][symbol]["USD"]["CHANGEPCT24HOUR"]
         status = "📈 صعودی" if change > 0 else "📉 نزولی"
         return f"{symbol}: ${price:,.2f} ({change:.2f}%) {status}"
     except:
@@ -132,7 +137,6 @@ def post_daily_analysis():
     msg = "📊 تحلیل تکنیکال روزانه بازار:\n\n" + "\n".join(results) + \
           "\n\n⚠️ مسئولیت استفاده با کاربر است.\n\n#DailyAnalysis #Crypto #Trading\n\n🦈 @Crypto_Zone360"
     send_message(msg)
-
     data["last_analysis_date"] = today
     save_posted(data)
 
